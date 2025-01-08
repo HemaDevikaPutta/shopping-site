@@ -1,0 +1,73 @@
+name: Release Automation
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.*'
+
+jobs:
+  build:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18.x"
+
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Verify Node Modules
+        run: |
+          if [ ! -d "node_modules" ]; then
+            echo "node_modules directory not found!"
+            exit 1
+          fi
+          ls -lh node_modules
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Verify Build Folder
+        run: |
+          if [ ! -d "./build" ]; then
+            echo "Build folder not found!"
+            exit 1
+          fi
+          ls -lh ./build
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: "Release ${{ github.ref_name }}"
+          body: |
+            Changes in this Release:
+            - Add change details here.
+          draft: false
+          prerelease: false
+
+      - name: Install Zip
+        run: sudo apt-get install -y zip
+
+      - name: Zip the Build Folder
+        run: zip -r build.zip ./build
+
+      - name: Verify Build.zip
+        run: |
+          if [ ! -f "build.zip" ]; then
+            echo "build.zip not created!"
+            exit 1
+          fi
+          ls -lh build.zip
+
+      - name: Cleanup Temporary Files
+        run: rm -rf build.zip ./build
